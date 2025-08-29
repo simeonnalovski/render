@@ -4,6 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from io import BytesIO
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import requests
@@ -37,12 +38,12 @@ BASE_DIR = Path(__file__).resolve().parent
 # --- CONFIGURATION ---
 MODEL_PATH_TECH = BASE_DIR / "chronos_tiny_Technology_final_forecast_covariates"
 MODEL_PATH_COMM = BASE_DIR / "chronos_tiny_Communication Services_final_forecast_covariates"
-
+TECH_REF_DATA_PATH = BASE_DIR / "data/ref/ref_Technology.csv"
+COMM_REF_DATA_PATH = BASE_DIR / "data/ref/ref_Communication_Services.csv"
 # Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
-# Security token configuration
 
 
 # --- Dependency Function for Token Authentication ---
@@ -211,6 +212,20 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         if 'date' not in df_user.columns or 'revenue' not in df_user.columns:
             raise HTTPException(status_code=400, detail="The CSV must contain 'date' and 'revenue' columns.")
 
+        if df_user['date'].isnull().any() or df_user['revenue'].isnull().any():
+            raise HTTPException(status_code=400,detail="The columns date or revenue contain null values")
+
+        if (pd.to_numeric(df_user['revenue'])<0).any():
+            raise HTTPException(status_code=400,detail="The column revenue contains at least one negative number")
+        if df_user.isnull().values.any():
+            raise HTTPException(status_code=400,detail="The file contains NaN values")
+        try:
+            df_user['date'] = pd.to_datetime(df_user['date'])
+            df_user['revenue'] = pd.to_numeric(df_user['revenue'])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="The 'date' or 'revenue' column contains invalid data formats.")
+
+
         df_user['date'] = pd.to_datetime(df_user['date'])
         df_user['year'] = df_user['date'].dt.year
         df_user['item_id'] = 'user_data'
@@ -220,6 +235,28 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         df_covariates = fetch_all_covariates_from_params(country, indicators)
         df_full = pd.merge(df_user, df_covariates, on='year', how='left')
         df_full['timestamp'] = pd.to_datetime(df_full['year'], format='%Y')
+        if df_full.shape[0] <5:
+            raise HTTPException(status_code=400, detail="Insuficient data for internal evaluation")
+        elif df_full.shape[0] == 5:
+            eval_data = df_full
+            historical_data_for_prediction = df_full
+            historical_ts = TimeSeriesDataFrame(historical_data_for_prediction.set_index(['item_id', 'timestamp']))
+            known_covariates = TimeSeriesDataFrame(eval_data.set_index(['item_id', 'timestamp']))
+        else:
+            eval_data = df_full.iloc[-5:]
+            historical_data_for_prediction=df_full.iloc[-5:]
+            historical_ts = TimeSeriesDataFrame(historical_data_for_prediction.set_index(['item_id', 'timestamp']))
+            known_covariates = TimeSeriesDataFrame(eval_data.set_index(['item_id', 'timestamp']))
+
+        # Predict on the holdout period
+        eval_predictions = predictor.predict(
+            historical_ts,
+            known_covariates=known_covariates
+        )
+        actual_values = eval_data['target'].values
+        forecast_values = eval_predictions['mean'].values
+        mape = np.mean(np.abs((actual_values - forecast_values) / actual_values)) * 100
+
 
         covariate_cols = [c for c in df_full.columns if c not in ['year', 'target', 'item_id', 'timestamp']]
         for col in covariate_cols:
@@ -279,7 +316,9 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
                     f"Average Uncertainty (80% CI): {avg_uncertainty_80:.2f}%")
             send_alert_email(subject, body)
 
+
         return {
+            "valiadtion_MAPE":f"{mape:.2f}%" if mape is not None else "N/A",
             "forecast_start_year": forecast_years_list[0],
             "prediction_length": forecast_years,
             "forecasted_revenue": dict(zip(forecast_years_list, median_forecast_np.tolist())),

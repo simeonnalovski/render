@@ -1,16 +1,25 @@
 import functools
+import logging
 import os
 import smtplib
 from email.mime.text import MIMEText
 from io import BytesIO
 from pathlib import Path
-
+from schema import validate_dataframe
 import numpy as np
 import pandas as pd
 import requests
 from autogluon.timeseries import TimeSeriesPredictor, TimeSeriesDataFrame
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Depends
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 # --- Custom Exceptions (For robust error handling) ---
@@ -38,8 +47,7 @@ BASE_DIR = Path(__file__).resolve().parent
 # --- CONFIGURATION ---
 MODEL_PATH_TECH = BASE_DIR / "chronos_tiny_Technology_final_forecast_covariates"
 MODEL_PATH_COMM = BASE_DIR / "chronos_tiny_Communication Services_final_forecast_covariates"
-TECH_REF_DATA_PATH = BASE_DIR / "data/ref/ref_Technology.csv"
-COMM_REF_DATA_PATH = BASE_DIR / "data/ref/ref_Communication_Services.csv"
+MODEL_PATH_HEALTH = BASE_DIR / "chronos_tiny_Healthcare_final_forecast_covariates"
 # Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -85,6 +93,12 @@ COMMUNICATION_INDICATORS = {
     "BM.GSR.ROYL.CD": "Charges for the use of intellectual property, payments (BoP, current US$)"
 }
 
+HEALTH_INDICATORS = {
+    "SH.XPD.CHEX.GD.ZS": "Health expenditure (% of GDP)",
+    "GB.XPD.RSDV.GD.ZS": "Research and development expenditure (% of GDP)",
+    "BX.GSR.ROYL.CD": "Charges for the use of intellectual property, receipts (current US$)",
+    "IP.PAT.RESD": "Patent applications by residents",
+}
 
 @functools.lru_cache(maxsize=1)
 def get_world_bank_official_map():
@@ -177,16 +191,25 @@ def fetch_all_covariates_from_params(country: str, indicators: dict):
 
 @app.on_event("startup")
 def load_resources():
-    global predictor_tech, predictor_comm
+    global predictor_tech, predictor_comm, predictor_health
     try:
         predictor_tech = TimeSeriesPredictor.load(MODEL_PATH_TECH)
+        logger.info("Technology model loaded successfully.")
     except Exception as e:
+        logger.error(f"Error loading the Technology model: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error loading the Technology model: {e}")
     try:
         predictor_comm = TimeSeriesPredictor.load(MODEL_PATH_COMM)
+        logger.info("Communication Services model loaded successfully.")
     except Exception as e:
+        logger.error(f"Error loading the Communication Services model: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error loading the Communication Services model: {e}")
 
+    try:
+        predictor_health= TimeSeriesPredictor.load(MODEL_PATH_HEALTH)
+        logger.info("Healthcare model loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading the Healthcare model: {e}",exc_info=True)
 
 def send_alert_email(subject, body):
     try:
@@ -199,9 +222,9 @@ def send_alert_email(subject, body):
             server.starttls()
             server.login(os.getenv('EMAIL_SENDER'), os.getenv('EMAIL_PASSWORD'))
             server.sendmail(os.getenv('EMAIL_SENDER'), os.getenv('EMAIL_RECEIVER'), msg.as_string())
-        print("Uncertainty alert email sent successfully!")
+        logger.info("Uncertainty alert email sent successfully!")
     except Exception as e:
-        print(f"Failed to send email alert: {e}")
+        logger.error(f"Failed to send email alert: {e}")
 
 
 def process_prediction(file_contents: bytes, country: str, indicators: dict, predictor: TimeSeriesPredictor,
@@ -209,16 +232,9 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
     try:
         df_user = pd.read_csv(BytesIO(file_contents))
 
-        if 'date' not in df_user.columns or 'revenue' not in df_user.columns:
-            raise HTTPException(status_code=400, detail="The CSV must contain 'date' and 'revenue' columns.")
+        if not validate_dataframe(df_user):
+            raise HTTPException( status_code= 422, detail="The given CSV doeen't match the required inocme statement schema")
 
-        if df_user['date'].isnull().any() or df_user['revenue'].isnull().any():
-            raise HTTPException(status_code=400,detail="The columns date or revenue contain null values")
-
-        if (pd.to_numeric(df_user['revenue'])<0).any():
-            raise HTTPException(status_code=400,detail="The column revenue contains at least one negative number")
-        if df_user.isnull().values.any():
-            raise HTTPException(status_code=400,detail="The file contains NaN values")
         try:
             df_user['date'] = pd.to_datetime(df_user['date'])
             df_user['revenue'] = pd.to_numeric(df_user['revenue'])
@@ -234,6 +250,7 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
 
         df_covariates = fetch_all_covariates_from_params(country, indicators)
         df_full = pd.merge(df_user, df_covariates, on='year', how='left')
+
         df_full['timestamp'] = pd.to_datetime(df_full['year'], format='%Y')
         if df_full.shape[0] <5:
             raise HTTPException(status_code=400, detail="Insuficient data for internal evaluation")
@@ -257,7 +274,6 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         forecast_values = eval_predictions['mean'].values
         mape = np.mean(np.abs((actual_values - forecast_values) / actual_values)) * 100
 
-
         covariate_cols = [c for c in df_full.columns if c not in ['year', 'target', 'item_id', 'timestamp']]
         for col in covariate_cols:
             df_full[col] = df_full[col].ffill().bfill()
@@ -267,6 +283,9 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         df_future_covariates = pd.DataFrame({'year': future_years})
         df_future_covariates['timestamp'] = pd.to_datetime(df_future_covariates['year'], format='%Y')
         df_future_covariates['item_id'] = 'user_data'
+
+        logger.info("User data validated and pre-processed.")
+
         for col in covariate_cols:
             df_future_covariates[col] = df_full[col].iloc[-1]
 
@@ -279,7 +298,6 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         )
 
         predictions = predictor.predict(historical_data, known_covariates=future_covariates)
-
         # --- The fix: Trim the predictions to the requested length
         predictions_trimmed = predictions.loc['user_data'].iloc[:forecast_years]
         predictions_values = predictions_trimmed.values
@@ -316,7 +334,7 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
                     f"Average Uncertainty (80% CI): {avg_uncertainty_80:.2f}%")
             send_alert_email(subject, body)
 
-
+        logger.info("Prediction successful.")
         return {
             "valiadtion_MAPE":f"{mape:.2f}%" if mape is not None else "N/A",
             "forecast_start_year": forecast_years_list[0],
@@ -332,6 +350,7 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
     except HTTPException as e:
         raise e
     except Exception as e:
+        logger.error(f"Unexpected error during prediction: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error during prediction: {e}")
 
 
@@ -350,6 +369,9 @@ async def predict_revenue(
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Upload a CSV.")
 
+    if forecast_years > 5:
+        raise HTTPException(status_code=400, detail="Due to conserns with prediction quality, the maximum limit for forecast_years is 5")
+
     contents = await file.read()
     sector_lower = sector.lower().replace(" ", "_")
 
@@ -363,14 +385,20 @@ async def predict_revenue(
             raise HTTPException(status_code=503, detail="Communication Services predictor not loaded.")
         return process_prediction(contents, country, COMMUNICATION_INDICATORS, predictor_comm, forecast_years)
 
+    elif sector_lower == 'healthcare':
+        if not predictor_health:
+            raise HTTPException(status_code=503, detail="Healthcare predictor not loaded")
+        return  process_prediction(contents,country,HEALTH_INDICATORS,predictor_health,forecast_years)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported sector: '{sector}'.")
 
 
 @app.get("/health")
 def health_check():
+    logger.info("Health check request received.")
     return {
         "status": "ok",
         "technology_model_loaded": predictor_tech is not None,
-        "communication_model_loaded": predictor_comm is not None
+        "communication_model_loaded": predictor_comm is not None,
+        "healthcare_model_loaded":  predictor_health is not None
     }

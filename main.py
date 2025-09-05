@@ -5,13 +5,16 @@ import smtplib
 from email.mime.text import MIMEText
 from io import BytesIO
 from pathlib import Path
-from schema import validate_dataframe
 import numpy as np
 import pandas as pd
 import requests
 from autogluon.timeseries import TimeSeriesPredictor, TimeSeriesDataFrame
 from dotenv import load_dotenv
+from evidently.ui.workspace import CloudWorkspace
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Depends
+from schema import validate_dataframe
+from evidently import Report
+from evidently.presets import DataSummaryPreset
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +51,8 @@ BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH_TECH = BASE_DIR / "chronos_tiny_Technology_final_forecast_covariates"
 MODEL_PATH_COMM = BASE_DIR / "chronos_tiny_Communication Services_final_forecast_covariates"
 MODEL_PATH_HEALTH = BASE_DIR / "chronos_tiny_Healthcare_final_forecast_covariates"
+MODEL_PATH_ENERGY= BASE_DIR / "chronos_tiny_Energy_final_forecast_covariates"
+MODEL_PATH_CONS_DEF= BASE_DIR / "chronos_tiny_Consumer_Defensive_final_forecast_covariates"
 # Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -99,7 +104,20 @@ HEALTH_INDICATORS = {
     "BX.GSR.ROYL.CD": "Charges for the use of intellectual property, receipts (current US$)",
     "IP.PAT.RESD": "Patent applications by residents",
 }
-
+ENERGY_INDICATORS = {
+    "EG.ELC.PROD.KH": "Electric power consumption (kWh per capita)",
+    "EG.IMP.CONS.ZS": "Energy imports, net (% of energy use)",
+    "BX.GRM.ENRG.ZS": "Fuel exports (% of merchandise exports)",
+    "EG.FEC.RNEW.ZS": "Renewable energy consumption (% of total final energy consumption)",
+    "NY.GDP.DEFL.ZS.AD": "GDP deflator (annual %)",
+    "SP.RRS.OIL.MA": "Crude oil price (WTI, annual)",
+}
+CONSUMER_DEFENSIVE_INDICATORS = {
+    "FP.CPI.TOTL.ZG": "Inflation, consumer prices (annual %)",
+    "NE.CON.PRVT.PC.KD": "Household final consumption expenditure per capita (constant 2017 US$)",
+    "SH.XPD.CHEX.GD.ZS": "Current health expenditure (% of GDP)",
+    "AG.PRD.FOOD.XD": "Food production index (2014-2016 = 100)",
+}
 @functools.lru_cache(maxsize=1)
 def get_world_bank_official_map():
     url = f"{BASE_URL}/country?format=json&per_page=500"
@@ -191,7 +209,7 @@ def fetch_all_covariates_from_params(country: str, indicators: dict):
 
 @app.on_event("startup")
 def load_resources():
-    global predictor_tech, predictor_comm, predictor_health
+    global predictor_tech, predictor_comm, predictor_health,predictor_energy, predictor_con_def
     try:
         predictor_tech = TimeSeriesPredictor.load(MODEL_PATH_TECH)
         logger.info("Technology model loaded successfully.")
@@ -211,6 +229,19 @@ def load_resources():
     except Exception as e:
         logger.error(f"Error loading the Healthcare model: {e}",exc_info=True)
 
+    try:
+        predictor_energy=TimeSeriesPredictor.load(MODEL_PATH_ENERGY)
+        logger.info("Energy model loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading Energy model: {e}",exc_info=True)
+
+    try:
+         predictor_con_def=TimeSeriesPredictor.load(MODEL_PATH_CONS_DEF)
+         logger.info("Consumer Defensive model loaded successfully")
+    except Exception as e:
+         logger.error(f"Error loading Consumer Defensive model: {e}", exc_info=True)
+
+
 def send_alert_email(subject, body):
     try:
         msg = MIMEText(body)
@@ -228,12 +259,21 @@ def send_alert_email(subject, body):
 
 
 def process_prediction(file_contents: bytes, country: str, indicators: dict, predictor: TimeSeriesPredictor,
-                       forecast_years: int):
+                       forecast_years: int, sector: str):
     try:
         df_user = pd.read_csv(BytesIO(file_contents))
 
         if not validate_dataframe(df_user):
             raise HTTPException( status_code= 422, detail="The given CSV doeen't match the required inocme statement schema")
+        report = Report([DataSummaryPreset()], tags=[sector])
+        my_eval = report.run(df_user)
+        ws = CloudWorkspace(
+            token=os.getenv("EVIDENTLY_API_KEY"),
+            url="https://app.evidently.cloud"
+        )
+        project = ws.get_project(os.getenv("EVIDENTLY_PROJECT_ID"))
+        ws.add_run(project.id, my_eval, include_data=False)
+
 
         try:
             df_user['date'] = pd.to_datetime(df_user['date'])
@@ -378,17 +418,25 @@ async def predict_revenue(
     if sector_lower == 'technology':
         if not predictor_tech:
             raise HTTPException(status_code=503, detail="Technology predictor not loaded.")
-        return process_prediction(contents, country, TECHNOLOGY_INDICATORS, predictor_tech, forecast_years)
+        return process_prediction(contents, country, TECHNOLOGY_INDICATORS, predictor_tech, forecast_years,sector_lower)
 
     elif sector_lower == 'communication_services':
         if not predictor_comm:
             raise HTTPException(status_code=503, detail="Communication Services predictor not loaded.")
-        return process_prediction(contents, country, COMMUNICATION_INDICATORS, predictor_comm, forecast_years)
+        return process_prediction(contents, country, COMMUNICATION_INDICATORS, predictor_comm, forecast_years,sector_lower)
 
     elif sector_lower == 'healthcare':
         if not predictor_health:
             raise HTTPException(status_code=503, detail="Healthcare predictor not loaded")
-        return  process_prediction(contents,country,HEALTH_INDICATORS,predictor_health,forecast_years)
+        return  process_prediction(contents,country,HEALTH_INDICATORS,predictor_health,forecast_years,sector_lower)
+    elif sector_lower == 'energy':
+        if not predictor_energy:
+            raise HTTPException(status_code=503,detail="Energy predictor not loaded")
+        return process_prediction(contents,country,ENERGY_INDICATORS,predictor_energy,forecast_years,sector_lower)
+    elif sector_lower == 'consumer_defensive':
+        if not predictor_con_def:
+            raise HTTPException(status_code=503,detail="Consumer Defensive model not loaded")
+        return process_prediction(contents,country,CONSUMER_DEFENSIVE_INDICATORS,predictor_con_def,forecast_years,sector_lower)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported sector: '{sector}'.")
 
@@ -400,5 +448,7 @@ def health_check():
         "status": "ok",
         "technology_model_loaded": predictor_tech is not None,
         "communication_model_loaded": predictor_comm is not None,
-        "healthcare_model_loaded":  predictor_health is not None
+        "healthcare_model_loaded":  predictor_health is not None,
+        "energy_model_loaded": predictor_energy is not None,
+        "con_def_model_loaded": predictor_con_def is not None
     }

@@ -5,16 +5,15 @@ import smtplib
 from email.mime.text import MIMEText
 from io import BytesIO
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import requests
 from autogluon.timeseries import TimeSeriesPredictor, TimeSeriesDataFrame
 from dotenv import load_dotenv
-from evidently.ui.workspace import CloudWorkspace
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Depends
+
 from schema import validate_dataframe
-from evidently import Report
-from evidently.presets import DataSummaryPreset
 
 logging.basicConfig(
     level=logging.INFO,
@@ -259,20 +258,13 @@ def send_alert_email(subject, body):
 
 
 def process_prediction(file_contents: bytes, country: str, indicators: dict, predictor: TimeSeriesPredictor,
-                       forecast_years: int, sector: str):
+                       forecast_years: int):
     try:
         df_user = pd.read_csv(BytesIO(file_contents))
 
         if not validate_dataframe(df_user):
             raise HTTPException( status_code= 422, detail="The given CSV doeen't match the required inocme statement schema")
-        report = Report([DataSummaryPreset()], tags=[sector])
-        my_eval = report.run(df_user)
-        ws = CloudWorkspace(
-            token=os.getenv("EVIDENTLY_API_KEY"),
-            url="https://app.evidently.cloud"
-        )
-        project = ws.get_project(os.getenv("EVIDENTLY_PROJECT_ID"))
-        ws.add_run(project.id, my_eval, include_data=False)
+
 
 
         try:
@@ -418,25 +410,25 @@ async def predict_revenue(
     if sector_lower == 'technology':
         if not predictor_tech:
             raise HTTPException(status_code=503, detail="Technology predictor not loaded.")
-        return process_prediction(contents, country, TECHNOLOGY_INDICATORS, predictor_tech, forecast_years,sector_lower)
+        return process_prediction(contents, country, TECHNOLOGY_INDICATORS, predictor_tech, forecast_years)
 
     elif sector_lower == 'communication_services':
         if not predictor_comm:
             raise HTTPException(status_code=503, detail="Communication Services predictor not loaded.")
-        return process_prediction(contents, country, COMMUNICATION_INDICATORS, predictor_comm, forecast_years,sector_lower)
+        return process_prediction(contents, country, COMMUNICATION_INDICATORS, predictor_comm, forecast_years)
 
     elif sector_lower == 'healthcare':
         if not predictor_health:
             raise HTTPException(status_code=503, detail="Healthcare predictor not loaded")
-        return  process_prediction(contents,country,HEALTH_INDICATORS,predictor_health,forecast_years,sector_lower)
+        return  process_prediction(contents,country,HEALTH_INDICATORS,predictor_health,forecast_years)
     elif sector_lower == 'energy':
         if not predictor_energy:
             raise HTTPException(status_code=503,detail="Energy predictor not loaded")
-        return process_prediction(contents,country,ENERGY_INDICATORS,predictor_energy,forecast_years,sector_lower)
+        return process_prediction(contents,country,ENERGY_INDICATORS,predictor_energy,forecast_years)
     elif sector_lower == 'consumer_defensive':
         if not predictor_con_def:
             raise HTTPException(status_code=503,detail="Consumer Defensive model not loaded")
-        return process_prediction(contents,country,CONSUMER_DEFENSIVE_INDICATORS,predictor_con_def,forecast_years,sector_lower)
+        return process_prediction(contents,country,CONSUMER_DEFENSIVE_INDICATORS,predictor_con_def,forecast_years)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported sector: '{sector}'.")
 

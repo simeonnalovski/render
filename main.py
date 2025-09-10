@@ -12,6 +12,7 @@ import requests
 from autogluon.timeseries import TimeSeriesPredictor, TimeSeriesDataFrame
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Depends
+from pydantic import ValidationError
 
 from schema import validate_dataframe
 
@@ -52,6 +53,7 @@ MODEL_PATH_COMM = BASE_DIR / "chronos_tiny_Communication Services_final_forecast
 MODEL_PATH_HEALTH = BASE_DIR / "chronos_tiny_Healthcare_final_forecast_covariates"
 MODEL_PATH_ENERGY= BASE_DIR / "chronos_tiny_Energy_final_forecast_covariates"
 MODEL_PATH_CONS_DEF= BASE_DIR / "chronos_tiny_Consumer_Defensive_final_forecast_covariates"
+MODEL_PATH_IND = BASE_DIR / "chronos_tiny_Industrials_final_forecast_covariates"
 # Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -117,6 +119,13 @@ CONSUMER_DEFENSIVE_INDICATORS = {
     "SH.XPD.CHEX.GD.ZS": "Current health expenditure (% of GDP)",
     "AG.PRD.FOOD.XD": "Food production index (2014-2016 = 100)",
 }
+INDUSTRIAL_INDICATORS = {
+    "NV.IND.MANF.ZS": "Manufacturing, value added (% of GDP)",
+    "NV.IND.TOTL.ZS": "Industry, including construction, value added (% of GDP)", # Replaced problematic indicator
+    "NE.IMP.GNFS.ZS": "Imports of goods and services (% of GDP)",
+    "NE.EXP.GNFS.CD": "Exports of goods and services (current US$)", # REPLACED INDICATOR
+}
+
 @functools.lru_cache(maxsize=1)
 def get_world_bank_official_map():
     url = f"{BASE_URL}/country?format=json&per_page=500"
@@ -208,7 +217,7 @@ def fetch_all_covariates_from_params(country: str, indicators: dict):
 
 @app.on_event("startup")
 def load_resources():
-    global predictor_tech, predictor_comm, predictor_health,predictor_energy, predictor_con_def
+    global predictor_tech, predictor_comm, predictor_health,predictor_energy, predictor_con_def,predictor_ind
     try:
         predictor_tech = TimeSeriesPredictor.load(MODEL_PATH_TECH)
         logger.info("Technology model loaded successfully.")
@@ -240,6 +249,11 @@ def load_resources():
     except Exception as e:
          logger.error(f"Error loading Consumer Defensive model: {e}", exc_info=True)
 
+    try:
+        predictor_ind=TimeSeriesPredictor.load(MODEL_PATH_IND)
+        logger.info("Industrials model loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading Industrials model:{e}",exc_info=True)
 
 def send_alert_email(subject, body):
     try:
@@ -260,10 +274,10 @@ def send_alert_email(subject, body):
 def process_prediction(file_contents: bytes, country: str, indicators: dict, predictor: TimeSeriesPredictor,
                        forecast_years: int):
     try:
-        df_user = pd.read_csv(BytesIO(file_contents))
+        df_user = pd.read_csv(BytesIO(file_contents),dtype={'cik':str})
+        df_user['cik']=df_user['cik'].str.zfill(10)
 
-        if not validate_dataframe(df_user):
-            raise HTTPException( status_code= 422, detail="The given CSV doeen't match the required inocme statement schema")
+        validate_dataframe(df_user)
 
 
 
@@ -379,6 +393,14 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
                 }
             }
         }
+
+    except ValidationError as e:
+        # Pydantic validation error handler
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Schema validation failed.",
+                    "errors": [{"msg": str(err["msg"]), "loc": err["loc"]} for err in e.errors()]}
+        )
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -429,6 +451,10 @@ async def predict_revenue(
         if not predictor_con_def:
             raise HTTPException(status_code=503,detail="Consumer Defensive model not loaded")
         return process_prediction(contents,country,CONSUMER_DEFENSIVE_INDICATORS,predictor_con_def,forecast_years)
+    elif sector_lower=='industrials':
+        if not predictor_ind:
+            raise HTTPException(status_code=503,detail="Industrials model not loaded")
+        return process_prediction(contents,country,INDUSTRIAL_INDICATORS,predictor_ind,forecast_years)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported sector: '{sector}'.")
 
@@ -442,5 +468,6 @@ def health_check():
         "communication_model_loaded": predictor_comm is not None,
         "healthcare_model_loaded":  predictor_health is not None,
         "energy_model_loaded": predictor_energy is not None,
-        "con_def_model_loaded": predictor_con_def is not None
+        "con_def_model_loaded": predictor_con_def is not None,
+        "ind_model_loaded": predictor_ind is not None
     }

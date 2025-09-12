@@ -1,0 +1,258 @@
+Frequency 'YE' stored as 'YE-DEC'
+Beginning AutoGluon training... Time limit = 600s
+AutoGluon will save models to '/content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates'
+=================== System Info ===================
+AutoGluon Version:  1.4.0
+Python Version:     3.12.11
+Operating System:   Linux
+Platform Machine:   x86_64
+Platform Version:   #1 SMP PREEMPT_DYNAMIC Sun Mar 30 16:01:29 UTC 2025
+CPU Count:          2
+GPU Count:          1
+Memory Avail:       9.71 GB / 12.67 GB (76.6%)
+Disk Space Avail:   66.73 GB / 112.64 GB (59.2%)
+===================================================
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': MAPE,
+ 'freq': 'YE-DEC',
+ 'hyperparameters': {'Chronos': {'fine_tune': True,
+                                 'hf_model_id': 'autogluon/chronos-t5-tiny'}},
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 5,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'target',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+Provided train_data has 17 rows, 1 time series. Median time series length is 17 (min=17, max=17). 
+
+Provided data contains following columns:
+	target: 'target'
+	past_covariates:
+		categorical:        []
+		continuous (float): ['GDP (current US$)_country', 'GDP (current US$)_region', 'GDP per capi... US$)_country', 'GDP per capi...t US$)_region', 'GDP growth (...al %)_country', 'GDP growth (annual %)_region', ...]
+
+AutoGluon will ignore following non-numeric/non-informative columns:
+	ignored covariates:      ['Domestic credit provided by financial sector (% of GDP)_region']
+
+To learn how to fix incorrectly inferred types, please see documentation for TimeSeriesPredictor.fit
+
+AutoGluon will gauge predictive performance using evaluation metric: 'MAPE'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+
+Starting training. Start time is 2025-09-12 12:48:42
+Models that will be trained: ['Chronos[autogluon__chronos-bolt-small]']
+Training timeseries model Chronos[autogluon__chronos-bolt-small]. Training for up to 600.0s of the 600.0s of remaining time.
+Chronos[autogluon__chronos-bolt-small]/W0 ignores following hyperparameters: ['hf_model_id']. See the documentation for Chronos[autogluon__chronos-bolt-small]/W0 for the list of supported hyperparameters.
+	Saving fine-tuned model to /content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates/models/Chronos[autogluon__chronos-bolt-small]/W0/fine-tuned-ckpt
+	-0.2307       = Validation score (-MAPE)
+	116.06  s     = Training runtime
+	0.02    s     = Validation (prediction) runtime
+Not fitting ensemble as only 1 model was trained.
+Training complete. Models trained: ['Chronos[autogluon__chronos-bolt-small]']
+Total runtime: 116.10 s
+Best model: Chronos[autogluon__chronos-bolt-small]
+Best model score: -0.2307
+Model not specified in predict, will default to the model with the best validation score: Chronos[autogluon__chronos-bolt-small]
+Warning: path already exists! This predictor may overwrite an existing predictor! path="/content/autogluon_models_local/chronos_tiny_Financial_Services_validation_covariates"
+Frequency 'YE' stored as 'YE-DEC'
+Beginning AutoGluon training... Time limit = 600s
+AutoGluon will save models to '/content/autogluon_models_local/chronos_tiny_Financial_Services_validation_covariates'
+=================== System Info ===================
+AutoGluon Version:  1.4.0
+Python Version:     3.12.11
+Operating System:   Linux
+Platform Machine:   x86_64
+Platform Version:   #1 SMP PREEMPT_DYNAMIC Sun Mar 30 16:01:29 UTC 2025
+CPU Count:          2
+GPU Count:          1
+Memory Avail:       9.89 GB / 12.67 GB (78.0%)
+Disk Space Avail:   66.22 GB / 112.64 GB (58.8%)
+===================================================
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': MAPE,
+ 'freq': 'YE-DEC',
+ 'hyperparameters': {'Chronos': {'fine_tune': True,
+                                 'hf_model_id': 'autogluon/chronos-t5-tiny'}},
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 3,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'target',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+Provided train_data has 14 rows, 1 time series. Median time series length is 14 (min=14, max=14). 
+
+Provided data contains following columns:
+	target: 'target'
+	past_covariates:
+		categorical:        []
+		continuous (float): ['GDP (current US$)_country', 'GDP (current US$)_region', 'GDP per capi... US$)_country', 'GDP per capi...t US$)_region', 'GDP growth (...al %)_country', 'GDP growth (annual %)_region', ...]
+
+AutoGluon will ignore following non-numeric/non-informative columns:
+	ignored covariates:      ['Domestic credit provided by financial sector (% of GDP)_region']
+
+To learn how to fix incorrectly inferred types, please see documentation for TimeSeriesPredictor.fit
+
+AutoGluon will gauge predictive performance using evaluation metric: 'MAPE'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+
+Starting training. Start time is 2025-09-12 12:53:59
+Models that will be trained: ['Chronos[autogluon__chronos-bolt-small]']
+Training timeseries model Chronos[autogluon__chronos-bolt-small]. Training for up to 600.0s of the 600.0s of remaining time.
+Chronos[autogluon__chronos-bolt-small]/W0 ignores following hyperparameters: ['hf_model_id']. See the documentation for Chronos[autogluon__chronos-bolt-small]/W0 for the list of supported hyperparameters.
+	Saving fine-tuned model to /content/autogluon_models_local/chronos_tiny_Financial_Services_validation_covariates/models/Chronos[autogluon__chronos-bolt-small]/W0/fine-tuned-ckpt
+	-0.0003       = Validation score (-MAPE)
+	170.19  s     = Training runtime
+	0.04    s     = Validation (prediction) runtime
+Not fitting ensemble as only 1 model was trained.
+Training complete. Models trained: ['Chronos[autogluon__chronos-bolt-small]']
+Total runtime: 170.25 s
+Best model: Chronos[autogluon__chronos-bolt-small]
+Best model score: -0.0003
+Model not specified in predict, will default to the model with the best validation score: Chronos[autogluon__chronos-bolt-small]
+Warning: path already exists! This predictor may overwrite an existing predictor! path="/content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates"
+Frequency 'YE' stored as 'YE-DEC'
+Frequency 'YE' stored as 'YE-DEC'
+Beginning AutoGluon training... Time limit = 600s
+Beginning AutoGluon training... Time limit = 600s
+AutoGluon will save models to '/content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates'
+AutoGluon will save models to '/content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates'
+=================== System Info ===================
+AutoGluon Version:  1.4.0
+Python Version:     3.12.11
+Operating System:   Linux
+Platform Machine:   x86_64
+Platform Version:   #1 SMP PREEMPT_DYNAMIC Sun Mar 30 16:01:29 UTC 2025
+CPU Count:          2
+GPU Count:          1
+Memory Avail:       9.71 GB / 12.67 GB (76.6%)
+Disk Space Avail:   66.22 GB / 112.64 GB (58.8%)
+===================================================
+=================== System Info ===================
+AutoGluon Version:  1.4.0
+Python Version:     3.12.11
+Operating System:   Linux
+Platform Machine:   x86_64
+Platform Version:   #1 SMP PREEMPT_DYNAMIC Sun Mar 30 16:01:29 UTC 2025
+CPU Count:          2
+GPU Count:          1
+Memory Avail:       9.71 GB / 12.67 GB (76.6%)
+Disk Space Avail:   66.22 GB / 112.64 GB (58.8%)
+===================================================
+
+Fitting with arguments:
+
+Fitting with arguments:
+{'enable_ensemble': True,
+ 'eval_metric': MAPE,
+ 'freq': 'YE-DEC',
+ 'hyperparameters': {'Chronos': {'fine_tune': True,
+                                 'hf_model_id': 'autogluon/chronos-t5-tiny'}},
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 5,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'target',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+{'enable_ensemble': True,
+ 'eval_metric': MAPE,
+ 'freq': 'YE-DEC',
+ 'hyperparameters': {'Chronos': {'fine_tune': True,
+                                 'hf_model_id': 'autogluon/chronos-t5-tiny'}},
+ 'known_covariates_names': [],
+ 'num_val_windows': 1,
+ 'prediction_length': 5,
+ 'quantile_levels': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+ 'random_seed': 123,
+ 'refit_every_n_windows': 1,
+ 'refit_full': False,
+ 'skip_model_selection': False,
+ 'target': 'target',
+ 'time_limit': 600,
+ 'verbosity': 2}
+
+Provided train_data has 17 rows, 1 time series. Median time series length is 17 (min=17, max=17). 
+Provided train_data has 17 rows, 1 time series. Median time series length is 17 (min=17, max=17). 
+
+Provided data contains following columns:
+
+Provided data contains following columns:
+	target: 'target'
+	target: 'target'
+	past_covariates:
+	past_covariates:
+		categorical:        []
+		categorical:        []
+		continuous (float): ['GDP (current US$)_country', 'GDP (current US$)_region', 'GDP per capi... US$)_country', 'GDP per capi...t US$)_region', 'GDP growth (...al %)_country', 'GDP growth (annual %)_region', ...]
+		continuous (float): ['GDP (current US$)_country', 'GDP (current US$)_region', 'GDP per capi... US$)_country', 'GDP per capi...t US$)_region', 'GDP growth (...al %)_country', 'GDP growth (annual %)_region', ...]
+
+AutoGluon will ignore following non-numeric/non-informative columns:
+
+AutoGluon will ignore following non-numeric/non-informative columns:
+	ignored covariates:      ['Domestic credit provided by financial sector (% of GDP)_region']
+	ignored covariates:      ['Domestic credit provided by financial sector (% of GDP)_region']
+
+To learn how to fix incorrectly inferred types, please see documentation for TimeSeriesPredictor.fit
+
+To learn how to fix incorrectly inferred types, please see documentation for TimeSeriesPredictor.fit
+
+AutoGluon will gauge predictive performance using evaluation metric: 'MAPE'
+
+AutoGluon will gauge predictive performance using evaluation metric: 'MAPE'
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+	This metric's sign has been flipped to adhere to being higher_is_better. The metric score can be multiplied by -1 to get the metric value.
+===================================================
+===================================================
+
+Starting training. Start time is 2025-09-12 12:56:52
+
+Starting training. Start time is 2025-09-12 12:56:52
+Models that will be trained: ['Chronos[autogluon__chronos-bolt-small]']
+Models that will be trained: ['Chronos[autogluon__chronos-bolt-small]']
+Training timeseries model Chronos[autogluon__chronos-bolt-small]. Training for up to 600.0s of the 600.0s of remaining time.
+Training timeseries model Chronos[autogluon__chronos-bolt-small]. Training for up to 600.0s of the 600.0s of remaining time.
+Chronos[autogluon__chronos-bolt-small]/W0 ignores following hyperparameters: ['hf_model_id']. See the documentation for Chronos[autogluon__chronos-bolt-small]/W0 for the list of supported hyperparameters.
+Chronos[autogluon__chronos-bolt-small]/W0 ignores following hyperparameters: ['hf_model_id']. See the documentation for Chronos[autogluon__chronos-bolt-small]/W0 for the list of supported hyperparameters.
+	Saving fine-tuned model to /content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates/models/Chronos[autogluon__chronos-bolt-small]/W0/fine-tuned-ckpt
+	Saving fine-tuned model to /content/autogluon_models_local/chronos_tiny_Financial_Services_final_forecast_covariates/models/Chronos[autogluon__chronos-bolt-small]/W0/fine-tuned-ckpt
+	-0.2307       = Validation score (-MAPE)
+	-0.2307       = Validation score (-MAPE)
+	169.34  s     = Training runtime
+	169.34  s     = Training runtime
+	0.04    s     = Validation (prediction) runtime
+	0.04    s     = Validation (prediction) runtime
+Not fitting ensemble as only 1 model was trained.
+Not fitting ensemble as only 1 model was trained.
+Training complete. Models trained: ['Chronos[autogluon__chronos-bolt-small]']
+Training complete. Models trained: ['Chronos[autogluon__chronos-bolt-small]']
+Total runtime: 169.40 s
+Total runtime: 169.40 s
+Best model: Chronos[autogluon__chronos-bolt-small]
+Best model: Chronos[autogluon__chronos-bolt-small]
+Best model score: -0.2307
+Best model score: -0.2307
+Model not specified in predict, will default to the model with the best validation score: Chronos[autogluon__chronos-bolt-small]
+Model not specified in predict, will default to the model with the best validation score: Chronos[autogluon__chronos-bolt-small]

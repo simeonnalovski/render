@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import List
 
 import pandas as pd
-from pydantic import BaseModel, TypeAdapter, Field, constr, model_validator
+from pydantic import BaseModel, TypeAdapter, Field, constr, model_validator, conint
 
 
 class IncomeStatement(BaseModel):
@@ -14,7 +14,7 @@ class IncomeStatement(BaseModel):
     acceptedDate: datetime
     fiscalYear: int
     period: constr(pattern=r'^FY$',strict=True)
-    revenue: int= Field(...,ge=0)
+    revenue: conint(ge=0)
     costOfRevenue: int= Field(...,ge=0)
     grossProfit: int
     researchAndDevelopmentExpenses: int=Field(...,ge=0)
@@ -59,6 +59,27 @@ class IncomeStatement(BaseModel):
 
         if self.filingDate < self.acceptedDate.date():
             raise ValueError("filingDate must be on or after acceptedDate.")
+
+        if self.date > self.filingDate:
+            raise ValueError("statement date cannot be after filing date.")
+
+        if self.fiscalYear != self.date.year:
+            raise ValueError("fiscalYear must match the year of the report date.")
+
+        if self.ebitda != (self.ebit + self.depreciationAndAmortization):
+            raise ValueError("EBITDA must equal EBIT + Depreciation & Amortization.")
+
+        if self.costAndExpenses != (self.costOfRevenue + self.operatingExpenses):
+            raise ValueError("costAndExpenses must equal costOfRevenue + operatingExpenses.")
+
+        if self.netInterestIncome != (self.interestIncome - self.interestExpense):
+            raise ValueError("netInterestIncome must equal interestIncome - interestExpense.")
+
+        if self.grossProfit < 0:
+            raise ValueError("grossProfit cannot be negative.")
+
+        if self.netIncome > self.revenue:
+            raise ValueError("netIncome cannot exceed revenue.")
 
         return self
 

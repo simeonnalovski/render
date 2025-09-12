@@ -54,6 +54,7 @@ MODEL_PATH_HEALTH = BASE_DIR / "chronos_tiny_Healthcare_final_forecast_covariate
 MODEL_PATH_ENERGY= BASE_DIR / "chronos_tiny_Energy_final_forecast_covariates"
 MODEL_PATH_CONS_DEF= BASE_DIR / "chronos_tiny_Consumer_Defensive_final_forecast_covariates"
 MODEL_PATH_IND = BASE_DIR / "chronos_tiny_Industrials_final_forecast_covariates"
+MODEL_PATH_FIN_SERVICES = BASE_DIR / "chronos_tiny_Financial_Services_final_forecast_covariates"
 # Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -81,49 +82,65 @@ GENERAL_INDICATORS = {
     "NE.CON.PRVT.ZS": "Household final consumption (% of GDP)",
 }
 
-# Indicators specific to the technology sector
-TECHNOLOGY_INDICATORS = {
-    "BM.GSR.CMCP.ZS": "Communications, computer, etc. (% of service imports, BoP)",
-    "BM.GSR.ROYL.CD": "Charges for the use of intellectual property, payments (BoP, current US$)",
-    "BX.GSR.CCIS.CD": "ICT service exports (BoP, current US$)",
-    "BX.GSR.CCIS.ZS": "ICT service exports (% of service exports, BoP)",
-    "BX.GSR.CMCP.ZS": "Communications, computer, etc. (% of service exports, BoP)"
+# Consolidated mapping of all sector-specific indicators
+SECTOR_INDICATORS_MAP = {
+    "technology": {
+        "BM.GSR.CMCP.ZS": "Communications, computer, etc. (% of service imports, BoP)",
+        "BM.GSR.ROYL.CD": "Charges for the use of intellectual property, payments (BoP, current US$)",
+        "BX.GSR.CCIS.CD": "ICT service exports (BoP, current US$)",
+        "BX.GSR.CCIS.ZS": "ICT service exports (% of service exports, BoP)",
+        "BX.GSR.CMCP.ZS": "Communications, computer, etc. (% of service exports, BoP)"
+    },
+    "communication_services": {
+        "IT.CEL.SETS": "Mobile cellular subscriptions",
+        "IT.CEL.SETS.P2": "Mobile cellular subscriptions (per 100 people)",
+        "IT.NET.USER.ZS": "Individuals using the Internet (% of population)",
+        "BX.GSR.ROYL.CD": "Charges for the use of intellectual property, receipts (BoP, current US$)",
+        "BM.GSR.ROYL.CD": "Charges for the use of intellectual property, payments (BoP, current US$)"
+    },
+    "healthcare": {
+        "SH.XPD.CHEX.GD.ZS": "Health expenditure (% of GDP)",
+        "GB.XPD.RSDV.GD.ZS": "Research and development expenditure (% of GDP)",
+        "BX.GSR.ROYL.CD": "Charges for the use of intellectual property, receipts (current US$)",
+        "IP.PAT.RESD": "Patent applications by residents",
+    },
+    "energy": {
+        "EG.ELC.PROD.KH": "Electric power consumption (kWh per capita)",
+        "EG.IMP.CONS.ZS": "Energy imports, net (% of energy use)",
+        "BX.GRM.ENRG.ZS": "Fuel exports (% of merchandise exports)",
+        "EG.FEC.RNEW.ZS": "Renewable energy consumption (% of total final energy consumption)",
+        "NY.GDP.DEFL.ZS.AD": "GDP deflator (annual %)",
+        "SP.RRS.OIL.MA": "Crude oil price (WTI, annual)",
+    },
+    "consumer_defensive": {
+        "FP.CPI.TOTL.ZG": "Inflation, consumer prices (annual %)",
+        "NE.CON.PRVT.PC.KD": "Household final consumption expenditure per capita (constant 2017 US$)",
+        "SH.XPD.CHEX.GD.ZS": "Current health expenditure (% of GDP)",
+        "AG.PRD.FOOD.XD": "Food production index (2014-2016 = 100)",
+    },
+    "industrials": {
+        "NV.IND.MANF.ZS": "Manufacturing, value added (% of GDP)",
+        "NV.IND.TOTL.ZS": "Industry, including construction, value added (% of GDP)",
+        "NE.IMP.GNFS.ZS": "Imports of goods and services (% of GDP)",
+        "NE.EXP.GNFS.CD": "Exports of goods and services (current US$)",
+    },
+    "financial_services":{
+    "FS.AST.DOMS.GD.ZS": "Domestic credit provided by financial sector (% of GDP)",
+    "FS.AST.PRVT.GD.ZS": "Domestic credit to private sector (% of GDP)",
+    "CM.MKT.TRAD.GD.ZS": "Stocks traded, total value (% of GDP)",
+    "CM.MKT.LCAP.GD.ZS": "Market capitalization of listed domestic companies (% of GDP)"
+}
 }
 
-# Indicators specific to the communication services sector
-COMMUNICATION_INDICATORS = {
-    "IT.CEL.SETS": "Mobile cellular subscriptions",
-    "IT.CEL.SETS.P2": "Mobile cellular subscriptions (per 100 people)",
-    "IT.NET.USER.ZS": "Individuals using the Internet (% of population)",
-    "BX.GSR.ROYL.CD": "Charges for the use of intellectual property, receipts (BoP, current US$)",
-    "BM.GSR.ROYL.CD": "Charges for the use of intellectual property, payments (BoP, current US$)"
-}
-
-HEALTH_INDICATORS = {
-    "SH.XPD.CHEX.GD.ZS": "Health expenditure (% of GDP)",
-    "GB.XPD.RSDV.GD.ZS": "Research and development expenditure (% of GDP)",
-    "BX.GSR.ROYL.CD": "Charges for the use of intellectual property, receipts (current US$)",
-    "IP.PAT.RESD": "Patent applications by residents",
-}
-ENERGY_INDICATORS = {
-    "EG.ELC.PROD.KH": "Electric power consumption (kWh per capita)",
-    "EG.IMP.CONS.ZS": "Energy imports, net (% of energy use)",
-    "BX.GRM.ENRG.ZS": "Fuel exports (% of merchandise exports)",
-    "EG.FEC.RNEW.ZS": "Renewable energy consumption (% of total final energy consumption)",
-    "NY.GDP.DEFL.ZS.AD": "GDP deflator (annual %)",
-    "SP.RRS.OIL.MA": "Crude oil price (WTI, annual)",
-}
-CONSUMER_DEFENSIVE_INDICATORS = {
-    "FP.CPI.TOTL.ZG": "Inflation, consumer prices (annual %)",
-    "NE.CON.PRVT.PC.KD": "Household final consumption expenditure per capita (constant 2017 US$)",
-    "SH.XPD.CHEX.GD.ZS": "Current health expenditure (% of GDP)",
-    "AG.PRD.FOOD.XD": "Food production index (2014-2016 = 100)",
-}
-INDUSTRIAL_INDICATORS = {
-    "NV.IND.MANF.ZS": "Manufacturing, value added (% of GDP)",
-    "NV.IND.TOTL.ZS": "Industry, including construction, value added (% of GDP)", # Replaced problematic indicator
-    "NE.IMP.GNFS.ZS": "Imports of goods and services (% of GDP)",
-    "NE.EXP.GNFS.CD": "Exports of goods and services (current US$)", # REPLACED INDICATOR
+# Map sector names to their respective model paths
+MODEL_PATHS = {
+    "technology": MODEL_PATH_TECH,
+    "communication_services": MODEL_PATH_COMM,
+    "healthcare": MODEL_PATH_HEALTH,
+    "energy": MODEL_PATH_ENERGY,
+    "consumer_defensive": MODEL_PATH_CONS_DEF,
+    "industrials": MODEL_PATH_IND,
+    "financial_services":MODEL_PATH_FIN_SERVICES
 }
 
 @functools.lru_cache(maxsize=1)
@@ -214,46 +231,16 @@ def fetch_all_covariates_from_params(country: str, indicators: dict):
 
     return df_all
 
-
+PREDICTORS = {}
 @app.on_event("startup")
 def load_resources():
-    global predictor_tech, predictor_comm, predictor_health,predictor_energy, predictor_con_def,predictor_ind
-    try:
-        predictor_tech = TimeSeriesPredictor.load(MODEL_PATH_TECH)
-        logger.info("Technology model loaded successfully.")
-    except Exception as e:
-        logger.error(f"Error loading the Technology model: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error loading the Technology model: {e}")
-    try:
-        predictor_comm = TimeSeriesPredictor.load(MODEL_PATH_COMM)
-        logger.info("Communication Services model loaded successfully.")
-    except Exception as e:
-        logger.error(f"Error loading the Communication Services model: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error loading the Communication Services model: {e}")
-
-    try:
-        predictor_health= TimeSeriesPredictor.load(MODEL_PATH_HEALTH)
-        logger.info("Healthcare model loaded successfully")
-    except Exception as e:
-        logger.error(f"Error loading the Healthcare model: {e}",exc_info=True)
-
-    try:
-        predictor_energy=TimeSeriesPredictor.load(MODEL_PATH_ENERGY)
-        logger.info("Energy model loaded successfully")
-    except Exception as e:
-        logger.error(f"Error loading Energy model: {e}",exc_info=True)
-
-    try:
-         predictor_con_def=TimeSeriesPredictor.load(MODEL_PATH_CONS_DEF)
-         logger.info("Consumer Defensive model loaded successfully")
-    except Exception as e:
-         logger.error(f"Error loading Consumer Defensive model: {e}", exc_info=True)
-
-    try:
-        predictor_ind=TimeSeriesPredictor.load(MODEL_PATH_IND)
-        logger.info("Industrials model loaded successfully")
-    except Exception as e:
-        logger.error(f"Error loading Industrials model:{e}",exc_info=True)
+    global PREDICTORS
+    for sector_name, path in MODEL_PATHS.items():
+        try:
+            PREDICTORS[sector_name] = TimeSeriesPredictor.load(path)
+            logger.info(f"{sector_name.replace('_', ' ').title()} model loaded successfully.")
+        except Exception as e:
+            logger.error(f"Error loading {sector_name} model: {e}", exc_info=True)
 
 def send_alert_email(subject, body):
     try:
@@ -276,7 +263,6 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
     try:
         df_user = pd.read_csv(BytesIO(file_contents),dtype={'cik':str})
         df_user['cik']=df_user['cik'].str.zfill(10)
-
         validate_dataframe(df_user)
 
 
@@ -399,7 +385,7 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         raise HTTPException(
             status_code=422,
             detail={"message": "Schema validation failed.",
-                    "errors": [{"msg": str(err["msg"]), "loc": err["loc"]} for err in e.errors()]}
+                    "errors": [{"msg": str(err["msg"])} for err in e.errors()]}
         )
     except HTTPException as e:
         raise e
@@ -420,6 +406,15 @@ async def predict_revenue(
     Accepts a CSV file of historical revenue data and returns a future forecast.
     The number of years to forecast is specified by the 'forecast_years' query parameter.
     """
+    sector_key = sector.lower().replace(" ", "_")
+
+    # Get the correct predictor and indicators dynamically
+    predictor = PREDICTORS.get(sector_key)
+    indicators = SECTOR_INDICATORS_MAP.get(sector_key)
+
+    # Check if the sector is supported
+    if not predictor or not indicators:
+        raise HTTPException(status_code=400, detail=f"Unsupported sector: '{sector}'.")
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Upload a CSV.")
 
@@ -427,47 +422,22 @@ async def predict_revenue(
         raise HTTPException(status_code=400, detail="Due to conserns with prediction quality, the maximum limit for forecast_years is 5")
 
     contents = await file.read()
-    sector_lower = sector.lower().replace(" ", "_")
-
-    if sector_lower == 'technology':
-        if not predictor_tech:
-            raise HTTPException(status_code=503, detail="Technology predictor not loaded.")
-        return process_prediction(contents, country, TECHNOLOGY_INDICATORS, predictor_tech, forecast_years)
-
-    elif sector_lower == 'communication_services':
-        if not predictor_comm:
-            raise HTTPException(status_code=503, detail="Communication Services predictor not loaded.")
-        return process_prediction(contents, country, COMMUNICATION_INDICATORS, predictor_comm, forecast_years)
-
-    elif sector_lower == 'healthcare':
-        if not predictor_health:
-            raise HTTPException(status_code=503, detail="Healthcare predictor not loaded")
-        return  process_prediction(contents,country,HEALTH_INDICATORS,predictor_health,forecast_years)
-    elif sector_lower == 'energy':
-        if not predictor_energy:
-            raise HTTPException(status_code=503,detail="Energy predictor not loaded")
-        return process_prediction(contents,country,ENERGY_INDICATORS,predictor_energy,forecast_years)
-    elif sector_lower == 'consumer_defensive':
-        if not predictor_con_def:
-            raise HTTPException(status_code=503,detail="Consumer Defensive model not loaded")
-        return process_prediction(contents,country,CONSUMER_DEFENSIVE_INDICATORS,predictor_con_def,forecast_years)
-    elif sector_lower=='industrials':
-        if not predictor_ind:
-            raise HTTPException(status_code=503,detail="Industrials model not loaded")
-        return process_prediction(contents,country,INDUSTRIAL_INDICATORS,predictor_ind,forecast_years)
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported sector: '{sector}'.")
+    return process_prediction(contents, country, indicators, predictor, forecast_years)
 
 
 @app.get("/health")
 def health_check():
     logger.info("Health check request received.")
+    # Dynamically check the status of each model
+    model_status = {
+        f"{sector}_model_loaded": predictor is not None
+        for sector, predictor in PREDICTORS.items()
+    }
+
+    # Add an overall status based on all models being loaded
+    all_models_loaded = all(model_status.values())
+
     return {
-        "status": "ok",
-        "technology_model_loaded": predictor_tech is not None,
-        "communication_model_loaded": predictor_comm is not None,
-        "healthcare_model_loaded":  predictor_health is not None,
-        "energy_model_loaded": predictor_energy is not None,
-        "con_def_model_loaded": predictor_con_def is not None,
-        "ind_model_loaded": predictor_ind is not None
+        "status": "ok" if all_models_loaded else "partially loaded",
+        "models": model_status
     }

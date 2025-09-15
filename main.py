@@ -3,6 +3,7 @@ import logging
 import os
 import smtplib
 from email.mime.text import MIMEText
+from enum import Enum
 from io import BytesIO
 from pathlib import Path
 
@@ -401,13 +402,22 @@ async def process_prediction(file_contents: bytes, country: str, indicators: dic
         logger.error(f"Unexpected error during prediction: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error during prediction: {e}")
 
+VALID_SECTORS = [key.replace('_', ' ') for key in SECTOR_INDICATORS_MAP.keys()]
+
+def validate_sector(sector: str = Query(..., description="Sector for the model")):
+    if sector.lower() not in [s.lower() for s in VALID_SECTORS]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid sector: '{sector}'. Valid sectors are: {', '.join(VALID_SECTORS)}."
+        )
+    return sector
 
 @app.post("/predict")
 async def predict_revenue(
-        file: UploadFile = File(...),
+        file: UploadFile = File(...,media_type="text/csv"),
         country: str = Query(..., description="Country for macroeconomic data"),
-        sector: str = Query(..., description="Sector ('Technology' or 'Communication Services')"),
-        forecast_years: int = Query(..., description="Number of years to forecast", ge=1),
+        sector: str = Depends(validate_sector),
+        forecast_years: int = Query(..., description="Number of years to forecast", ge=1,le=5),
         token: str = Depends(verify_token)
 ):
     """
@@ -426,8 +436,6 @@ async def predict_revenue(
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Upload a CSV.")
 
-    if forecast_years > 5:
-        raise HTTPException(status_code=400, detail="Due to conserns with prediction quality, the maximum limit for forecast_years is 5")
 
     contents = await file.read()
     return  await process_prediction(contents, country, indicators, predictor, forecast_years)

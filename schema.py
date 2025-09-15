@@ -63,9 +63,6 @@ class IncomeStatement(BaseModel):
         if self.date > self.filingDate:
             raise ValueError("statement date cannot be after filing date.")
 
-        if self.fiscalYear != self.date.year:
-            raise ValueError("fiscalYear must match the year of the report date.")
-
         if self.ebitda != (self.ebit + self.depreciationAndAmortization):
             raise ValueError("EBITDA must equal EBIT + Depreciation & Amortization.")
 

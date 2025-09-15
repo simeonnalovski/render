@@ -15,6 +15,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Depends
 from pydantic import ValidationError
 
 from schema import validate_dataframe
+import whylogs as why
+import asyncio
+import httpx
 
 logging.basicConfig(
     level=logging.INFO,
@@ -177,11 +180,11 @@ def get_wb_codes_from_country_name(country_name):
     raise ValueError(f"Unmapped World Bank country: {normalized_name}")
 
 
-def fetch_indicator_data(entity_code, indicator_code, label, is_region=False):
+async  def fetch_indicator_data(client, entity_code, indicator_code, label, is_region=False):
     column_suffix = "_region" if is_region else "_country"
     url = f"{BASE_URL}/country/{entity_code}/indicator/{indicator_code}?format=json&per_page=1000"
     try:
-        response = requests.get(url, timeout=10)
+        response = await client.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
         if not data or len(data) < 2 or not data[1]:
@@ -193,11 +196,11 @@ def fetch_indicator_data(entity_code, indicator_code, label, is_region=False):
             "year": int(rec["date"]),
             f"{label}{column_suffix}": rec["value"]
         } for rec in records])
-    except requests.exceptions.RequestException:
+    except httpx.RequestError:
         return pd.DataFrame()
 
-
-def fetch_all_covariates_from_params(country: str, indicators: dict):
+# Made this function async
+async def fetch_all_covariates_from_params(country: str, indicators: dict):
     try:
         country_code, region_code = get_wb_codes_from_country_name(country)
     except ValueError as e:
@@ -205,20 +208,21 @@ def fetch_all_covariates_from_params(country: str, indicators: dict):
 
     all_indicators = {**GENERAL_INDICATORS, **indicators}
     df_all = pd.DataFrame({"year": []})
+    tasks = []
 
-    for code, label in all_indicators.items():
-        try:
-            c_data = fetch_indicator_data(country_code, code, label, is_region=False)
-            if not c_data.empty:
-                df_all = pd.merge(df_all, c_data, on="year", how="outer") if not df_all.empty else c_data
-        except Exception:
-            pass
-        try:
-            r_data = fetch_indicator_data(region_code, code, label, is_region=True)
-            if not r_data.empty:
-                df_all = pd.merge(df_all, r_data, on="year", how="outer")
-        except Exception:
-            pass
+    # Use an async client within this function
+    async with httpx.AsyncClient() as client:
+        for code, label in all_indicators.items():
+            tasks.append(fetch_indicator_data(client, country_code, code, label, is_region=False))
+            tasks.append(fetch_indicator_data(client, region_code, code, label, is_region=True))
+
+        # Run all requests concurrently
+        results = await asyncio.gather(*tasks)
+
+    # Merge the results back into a single DataFrame
+    for df in results:
+        if not df.empty:
+            df_all = pd.merge(df_all, df, on="year", how="outer") if not df_all.empty else df
 
     if df_all.empty:
         raise HTTPException(status_code=500, detail="Could not retrieve any World Bank data for the specified country.")
@@ -258,12 +262,16 @@ def send_alert_email(subject, body):
         logger.error(f"Failed to send email alert: {e}")
 
 
-def process_prediction(file_contents: bytes, country: str, indicators: dict, predictor: TimeSeriesPredictor,
+async def process_prediction(file_contents: bytes, country: str, indicators: dict, predictor: TimeSeriesPredictor,
                        forecast_years: int):
     try:
         df_user = pd.read_csv(BytesIO(file_contents),dtype={'cik':str})
         df_user['cik']=df_user['cik'].str.zfill(10)
         validate_dataframe(df_user)
+        profile=why.log(pandas=df_user)
+        summary=profile.view()
+        summary_dict = summary.to_pandas()
+        print(summary_dict)
 
 
 
@@ -280,7 +288,7 @@ def process_prediction(file_contents: bytes, country: str, indicators: dict, pre
         df_user.rename(columns={'revenue': 'target', 'date': 'timestamp'}, inplace=True)
         df_user = df_user.sort_values(by="timestamp").reset_index(drop=True)
 
-        df_covariates = fetch_all_covariates_from_params(country, indicators)
+        df_covariates = await fetch_all_covariates_from_params(country, indicators)
         df_full = pd.merge(df_user, df_covariates, on='year', how='left')
 
         df_full['timestamp'] = pd.to_datetime(df_full['year'], format='%Y')
@@ -422,7 +430,7 @@ async def predict_revenue(
         raise HTTPException(status_code=400, detail="Due to conserns with prediction quality, the maximum limit for forecast_years is 5")
 
     contents = await file.read()
-    return process_prediction(contents, country, indicators, predictor, forecast_years)
+    return  await process_prediction(contents, country, indicators, predictor, forecast_years)
 
 
 @app.get("/health")
